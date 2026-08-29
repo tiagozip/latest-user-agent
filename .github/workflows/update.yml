@@ -10,10 +10,70 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  test:
+  collect:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Remove preinstalled drivers
+        shell: bash
+        run: |
+          for driver in chromedriver geckodriver msedgedriver; do
+            path="$(command -v "$driver" || true)"
+            if [ -n "$path" ]; then sudo rm -f "$path" 2>/dev/null || rm -f "$path"; fi
+          done
+
+      - name: Enable safaridriver
+        if: runner.os == 'macOS'
+        run: sudo safaridriver --enable
+
+      - name: Collect (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y xvfb
+          xvfb-run -a pnpm run collect
+
+      - name: Collect (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: pnpm run collect
+
+      - name: Upload fragment
+        uses: actions/upload-artifact@v4
+        with:
+          name: fragment-${{ matrix.name }}
+          path: header.json
+
+  merge:
+    needs: collect
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -21,73 +81,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          python-version: "3.10"
+          version: "11"
 
-      - name: Run FastAPI server
-        run: |
-          pip install -r requirements.txt
-          uvicorn main:app --host 0.0.0.0 --port 8000 & sleep 3
-
-      - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v1
-        id: setup-chrome
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          chrome-version: "stable"
+          node-version: "22"
+          cache: pnpm
 
-      - name: Set up Edge
-        uses: browser-actions/setup-edge@v1
-        id: setup-edge
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download fragments
+        uses: actions/download-artifact@v4
         with:
-          edge-version: 'stable'
+          path: fragments
 
-      - name: Set up Firefox
-        uses: browser-actions/setup-firefox@v1
-        id: setup-firefox
-        with:
-          firefox-version: "latest"
-
-      - name: Set up Xvfb
-        run: |
-          sudo apt-get install -y xvfb
-
-      - name: Remove json
-        run: |
-          echo "{}" > output.json
-          echo "{}" > header.json
-
-      - name: Init Chrome
-        continue-on-error: true
-        run: |
-          timeout 10 xvfb-run -a ${{ steps.setup-chrome.outputs.chrome-path }} --no-sandbox --disable-gpu https://www.google.com
-
-      - name: Run
-        run: |
-          timeout 10 xvfb-run -a ${{ steps.setup-chrome.outputs.chrome-path }} --no-sandbox --disable-gpu http://127.0.0.1:8000/chrome || true
-          timeout 10 xvfb-run -a ${{ steps.setup-chrome.outputs.chrome-path }} --no-sandbox --disable-gpu http://127.0.0.1:8000/fetch/chrome || true
-          timeout 10 xvfb-run -a ${{ steps.setup-edge.outputs.edge-path }} --no-sandbox --disable-gpu http://127.0.0.1:8000/edge || true
-          timeout 10 xvfb-run -a ${{ steps.setup-edge.outputs.edge-path }} --no-sandbox --disable-gpu http://127.0.0.1:8000/fetch/edge || true
-          timeout 10 xvfb-run -a ${{ steps.setup-firefox.outputs.firefox-path }} http://127.0.0.1:8000/firefox || true
-          timeout 10 xvfb-run -a ${{ steps.setup-firefox.outputs.firefox-path }} http://127.0.0.1:8000/fetch/firefox || true
-          timeout 10 ${{ steps.setup-chrome.outputs.chrome-path }}  --headless=new --no-sandbox --disable-gpu --timeout=10000 http://127.0.0.1:8000/headless-chrome || true
-          timeout 10 ${{ steps.setup-chrome.outputs.chrome-path }}  --headless=new --no-sandbox --disable-gpu --timeout=10000 http://127.0.0.1:8000/fetch/headless-chrome || true
-          timeout 10 ${{ steps.setup-edge.outputs.edge-path }}  --headless=new --no-sandbox --disable-gpu --timeout=10000 http://127.0.0.1:8000/headless-edge || true
-          timeout 10 ${{ steps.setup-edge.outputs.edge-path }}  --headless=new --no-sandbox --disable-gpu --timeout=10000 http://127.0.0.1:8000/fetch/headless-edge || true
-          timeout 10 ${{ steps.setup-firefox.outputs.firefox-path }} --headless http://127.0.0.1:8000/headless-firefox || true
-          timeout 10 ${{ steps.setup-firefox.outputs.firefox-path }} --headless http://127.0.0.1:8000/fetch/headless-firefox || true
-
-      - name: Check
-        run: |
-          python -c "import json; print(list(json.load(open('output.json')).keys()))"
-          python -c "import json; assert len(json.load(open('output.json'))) == 18"
+      - name: Merge
+        run: pnpm run merge
 
       - name: Commit
         continue-on-error: true
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Action"
-          git add .
+          git add output.json header.json
           git commit -m "Update"
           git push origin main
