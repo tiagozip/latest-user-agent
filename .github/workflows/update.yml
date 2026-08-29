@@ -67,6 +67,13 @@ jobs:
         if: runner.os == 'macOS'
         run: sudo safaridriver --enable
 
+      - name: Remove preinstalled drivers
+        if: runner.os == 'macOS'
+        run: |
+          for driver in chromedriver geckodriver msedgedriver; do
+            if command -v "$driver"; then sudo rm -f "$(command -v "$driver")"; fi
+          done
+
       - name: Collect (Linux)
         if: runner.os == 'Linux'
         run: |
