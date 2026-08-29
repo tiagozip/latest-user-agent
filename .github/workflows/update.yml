@@ -63,13 +63,10 @@ jobs:
         with:
           edge-version: "stable"
 
-      - name: Enable safaridriver
-        if: runner.os == 'macOS'
-        run: sudo safaridriver --enable
-
-      - name: Remove preinstalled drivers
+      - name: Set up macOS drivers
         if: runner.os == 'macOS'
         run: |
+          sudo safaridriver --enable
           for driver in chromedriver geckodriver msedgedriver; do
             if command -v "$driver"; then sudo rm -f "$(command -v "$driver")"; fi
           done
