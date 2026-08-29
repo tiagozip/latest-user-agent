@@ -15,6 +15,7 @@ export const setUpBrowser = (config: BrowserConfig) => {
   const chromeDriver = ({ headless }: DriverConfig) => {
     const options = new chrome.Options();
     options.setBrowserVersion("stable");
+    options.addArguments("--disable-gpu");
     if (headless) options.addArguments("--headless=new");
     if (config.platform === "linux") options.addArguments("--no-sandbox");
     return new Builder()
@@ -26,6 +27,7 @@ export const setUpBrowser = (config: BrowserConfig) => {
   const edgeDriver = ({ headless }: DriverConfig) => {
     const options = new edge.Options();
     options.setBrowserVersion("stable");
+    options.addArguments("--disable-gpu");
     if (headless) options.addArguments("--headless=new");
     if (config.platform === "linux") options.addArguments("--no-sandbox");
     return new Builder()
