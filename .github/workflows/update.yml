@@ -49,6 +49,11 @@ jobs:
         id: setup-chrome
         with:
           chrome-version: "stable"
+          install-chromedriver: "true"
+
+      - name: Add chromedriver to PATH
+        shell: bash
+        run: echo "$(dirname '${{ steps.setup-chrome.outputs.chromedriver-path }}')" >> "$GITHUB_PATH"
 
       - name: Set up Firefox
         uses: browser-actions/setup-firefox@v1

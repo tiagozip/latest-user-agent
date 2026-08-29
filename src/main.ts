@@ -81,6 +81,7 @@ const headers: [string, Record<string, string>][] = [];
 for (const target of targets) {
   console.log(`running: ${target.key}`);
   const driver = await target.driver();
+  console.log(`  driver ready: ${target.key}`);
   const [top] = await Promise.all([wait(), driver.get(`${base}`)]);
   const [fetched] = await Promise.all([wait(), driver.get(`${base}/fetch`)]);
   const [xhr] = await Promise.all([wait(), driver.get(`${base}/xhr`)]);
