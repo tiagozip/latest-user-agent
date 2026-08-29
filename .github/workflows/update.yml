@@ -44,54 +44,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Set up macOS drivers
-        if: runner.os == 'macOS'
-        run: |
-          sudo safaridriver --enable
-          if command -v chromedriver; then sudo rm -f "$(command -v chromedriver)"; fi
-
-      - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v1
-        id: setup-chrome
-        with:
-          chrome-version: "stable"
-          install-chromedriver: "true"
-
-      - name: Add chromedriver to PATH
-        if: runner.os != 'Windows'
+      - name: Remove preinstalled drivers
         shell: bash
-        run: echo "$(dirname '${{ steps.setup-chrome.outputs.chromedriver-path }}')" >> "$GITHUB_PATH"
+        run: |
+          for driver in chromedriver geckodriver msedgedriver; do
+            path="$(command -v "$driver" || true)"
+            if [ -n "$path" ]; then sudo rm -f "$path" 2>/dev/null || rm -f "$path"; fi
+          done
 
-      - name: Set up Firefox
-        uses: browser-actions/setup-firefox@v1
-        id: setup-firefox
-        with:
-          firefox-version: "latest"
-
-      - name: Set up Edge
-        if: runner.os == 'Linux'
-        uses: browser-actions/setup-edge@v1
-        id: setup-edge
-        with:
-          edge-version: "stable"
+      - name: Enable safaridriver
+        if: runner.os == 'macOS'
+        run: sudo safaridriver --enable
 
       - name: Collect (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install -y xvfb
           xvfb-run -a pnpm run collect
-        env:
-          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
-          EDGE_PATH: ${{ steps.setup-edge.outputs.edge-path }}
-          FIREFOX_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
 
       - name: Collect (Windows/macOS)
         if: runner.os != 'Linux'
         run: pnpm run collect
-        env:
-          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
-          FIREFOX_PATH: ${{ steps.setup-firefox.outputs.firefox-path }}
-          EDGE_PATH: ${{ steps.setup-edge.outputs.edge-path }}
 
       - name: Upload fragment
         uses: actions/upload-artifact@v4

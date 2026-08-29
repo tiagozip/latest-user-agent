@@ -9,36 +9,35 @@ interface BrowserConfig {
 
 interface DriverConfig {
   headless: boolean;
-  path?: string;
 }
 
 export const setUpBrowser = (config: BrowserConfig) => {
-  const chromeDriver = ({ headless, path }: DriverConfig) => {
+  const chromeDriver = ({ headless }: DriverConfig) => {
     const options = new chrome.Options();
+    options.setBrowserVersion("stable");
     if (headless) options.addArguments("--headless=new");
     if (config.platform === "linux") options.addArguments("--no-sandbox");
-    if (path) options.setChromeBinaryPath(path);
     return new Builder()
       .forBrowser(Browser.CHROME)
       .setChromeOptions(options)
       .build();
   };
 
-  const edgeDriver = ({ headless, path }: DriverConfig) => {
+  const edgeDriver = ({ headless }: DriverConfig) => {
     const options = new edge.Options();
+    options.setBrowserVersion("stable");
     if (headless) options.addArguments("--headless=new");
     if (config.platform === "linux") options.addArguments("--no-sandbox");
-    if (path) options.setEdgeChromiumBinaryPath(path);
     return new Builder()
       .forBrowser(Browser.EDGE)
       .setEdgeOptions(options)
       .build();
   };
 
-  const firefoxDriver = ({ headless, path }: DriverConfig) => {
+  const firefoxDriver = ({ headless }: DriverConfig) => {
     const options = new firefox.Options();
+    options.setBrowserVersion("stable");
     if (headless) options.addArguments("-headless");
-    if (path) options.setBinary(path);
     return new Builder()
       .forBrowser(Browser.FIREFOX)
       .setFirefoxOptions(options)

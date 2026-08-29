@@ -1,16 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { type WebDriver } from "selenium-webdriver";
-import { z } from "zod";
 import { setUpBrowser } from "./browser";
 import { server } from "./server";
-
-const env = z
-  .object({
-    CHROME_PATH: z.string().optional(),
-    EDGE_PATH: z.string().optional(),
-    FIREFOX_PATH: z.string().optional(),
-  })
-  .parse(process.env);
 
 const pages = {
   fetch: await readFile(new URL("./fetch.html", import.meta.url), "utf-8"),
@@ -58,15 +49,15 @@ for (const headless of [false, true]) {
   const name = headless ? "headless-" : "";
   targets.push({
     key: `${prefix}${name}chrome`,
-    driver: () => browser.chromeDriver({ headless, path: env.CHROME_PATH }),
+    driver: () => browser.chromeDriver({ headless }),
   });
   targets.push({
     key: `${prefix}${name}edge`,
-    driver: () => browser.edgeDriver({ headless, path: env.EDGE_PATH }),
+    driver: () => browser.edgeDriver({ headless }),
   });
   targets.push({
     key: `${prefix}${name}firefox`,
-    driver: () => browser.firefoxDriver({ headless, path: env.FIREFOX_PATH }),
+    driver: () => browser.firefoxDriver({ headless }),
   });
 }
 if (process.platform === "darwin") {
